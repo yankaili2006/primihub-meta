@@ -84,7 +84,12 @@ public class DataResourceConvert {
         fusionResourceVo.setResourceContainsY(fusionResource.getResourceContainsY());
         fusionResourceVo.setResourceYRowsCount(fusionResource.getResourceYRowsCount());
         fusionResourceVo.setResourceYRatio(fusionResource.getResourceYRatio());
-        fusionResourceVo.setResourceTag(Arrays.asList(fusionResource.getResourceTag().split(",")));
+        // 添加空指针检查，避免 resourceTag 为 null 时抛出异常
+        if (fusionResource.getResourceTag() != null && !fusionResource.getResourceTag().isEmpty()) {
+            fusionResourceVo.setResourceTag(Arrays.asList(fusionResource.getResourceTag().split(",")));
+        } else {
+            fusionResourceVo.setResourceTag(Arrays.asList(""));
+        }
         fusionResourceVo.setOrganId(fusionResource.getOrganId());
         fusionResourceVo.setCreateDate(fusionResource.getCTime());
         if (fieldList!=null&&fieldList.size()!=0){

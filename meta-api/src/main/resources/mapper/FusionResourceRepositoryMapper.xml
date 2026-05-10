@@ -170,10 +170,15 @@
     <select id="selectFusionResourceFieldByIds" resultMap="FusionResourceFieldBaseResultMap">
         select
         <include refid="Fusion_Resource_Field_Base_Column_List"/>
-        from fusion_resource_field where resource_id in
-        <foreach collection="resourceIds" index="index" item="item" separator="," open="(" close=")" >
-            #{item}
-        </foreach>
+        from fusion_resource_field
+        <where>
+            <if test="resourceIds != null and resourceIds.size() > 0">
+                resource_id in
+                <foreach collection="resourceIds" index="index" item="item" separator="," open="(" close=")" >
+                    #{item}
+                </foreach>
+            </if>
+        </where>
     </select>
 
 

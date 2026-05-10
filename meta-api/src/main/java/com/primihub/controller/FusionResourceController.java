@@ -39,13 +39,14 @@ public class FusionResourceController {
         return resourceService.getResourceListById(resourceIdArray,globalId);
     }
     @RequestMapping("getCopyResource")
-    public BaseResultEntity getCopyResource(String[] resourceIds){
-        if(resourceIds==null||resourceIds.length==0) {
+    public BaseResultEntity getCopyResource(@org.springframework.web.bind.annotation.RequestParam("resourceIds") Set<String> resourceIds){
+        if(resourceIds==null||resourceIds.isEmpty()) {
             return BaseResultEntity.failure(BaseResultEnum.LACK_OF_PARAM,"resourceIds");
         }
-        log.info(JSONObject.toJSONString(resourceIds));
-        BaseResultEntity copyResource = resourceService.getCopyResource(resourceIds);
-        log.info(JSONObject.toJSONString(copyResource));
+        log.info("getCopyResource - resourceIds: {}", JSONObject.toJSONString(resourceIds));
+        String[] resourceIdArray = resourceIds.toArray(new String[0]);
+        BaseResultEntity copyResource = resourceService.getCopyResource(resourceIdArray);
+        log.info("getCopyResource - result: {}", JSONObject.toJSONString(copyResource));
         return copyResource;
     }
 
