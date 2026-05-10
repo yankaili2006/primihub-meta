@@ -100,7 +100,7 @@ public class DataSet {
 
     @Override
     public String toString() {
-        return "DatSetEntity{" +
+        return "DataSet{" +
                 "id='" + id + '\'' +
                 ", accessInfo='" + accessInfo + '\'' +
                 ", driver='" + driver + '\'' +

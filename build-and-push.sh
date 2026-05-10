@@ -1,6 +1,5 @@
 #!/bin/bash
-# primihub-meta 编译和构建镜像脚本
-# 基于Jenkins配置生成
+# primihub-meta 编译、测试和构建镜像脚本
 
 set -e
 
@@ -8,13 +7,14 @@ set -e
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
 # 默认配置
 DEFAULT_REGISTRY="192.168.99.10/primihub"
 DEFAULT_IMAGE_NAME="meta"
 BUILD_NUMBER=${BUILD_NUMBER:-$(date +%Y%m%d%H%M%S)}
-DOCKERFILE="Dockerfile.local"
+DOCKERFILE="Dockerfile"
+MODULE="all"  # all, api, simple
 
 # 打印带颜色的消息
 print_info() {
@@ -35,30 +35,29 @@ show_help() {
 用法: $0 [选项]
 
 选项:
-    -r, --registry REGISTRY    Docker镜像仓库地址 (默认: ${DEFAULT_REGISTRY})
-    -n, --name NAME            镜像名称 (默认: ${DEFAULT_IMAGE_NAME})
-    -t, --tag TAG              镜像标签 (默认: ${BUILD_NUMBER})
-    -f, --dockerfile FILE      Dockerfile文件 (默认: ${DOCKERFILE})
-    -s, --skip-build           跳过Maven编译步骤
-    -p, --push                 构建后推送镜像到仓库
-    -c, --clean                构建前清理target目录
-    -h, --help                 显示此帮助信息
+    -m, --module MODULE       选择模块: all, api, simple (默认: ${MODULE})
+    -r, --registry REGISTRY   Docker镜像仓库地址 (默认: ${DEFAULT_REGISTRY})
+    -n, --name NAME           镜像名称 (默认: ${DEFAULT_IMAGE_NAME})
+    -t, --tag TAG             镜像标签 (默认: ${BUILD_NUMBER})
+    -f, --dockerfile FILE     Dockerfile文件 (默认: 根据模块自动选择)
+    -s, --skip-build          跳过Maven编译步骤
+    -p, --push                构建后推送镜像到仓库
+    -c, --clean               构建前清理target目录
+    -T, --skip-tests          跳过测试 (默认: 运行测试)
+    -h, --help                显示此帮助信息
 
 示例:
-    # 使用默认配置编译和构建镜像
+    # 构建并测试所有模块
     $0
 
-    # 指定自定义标签
-    $0 -t v1.0.0
+    # 仅构建和部署 meta-simple 模块
+    $0 -m simple -t latest
 
-    # 跳过编译直接构建镜像
-    $0 -s
+    # 构建并推送 meta-api 镜像
+    $0 -m api -p -t v1.0.0
 
-    # 构建并推送镜像
-    $0 -p -t latest
-
-    # 使用自定义仓库和标签
-    $0 -r docker.io/myrepo -n primihub-meta -t v1.2.3 -p
+    # 跳过测试快速构建
+    $0 -T -s
 
 EOF
 }
@@ -88,17 +87,41 @@ check_dependencies() {
 
 # Maven编译
 maven_build() {
-    print_info "开始Maven编译..."
-    print_info "执行命令: mvn clean install -Dmaven.test.skip=true -Dasciidoctor.skip=true -Dos.detected.classifier=linux-x86_64"
+    local mvn_opts=""
 
-    if [ "$CLEAN_BUILD" = true ]; then
-        print_info "清理构建目录..."
-        mvn clean
+    if [ "$SKIP_TESTS" = true ]; then
+        mvn_opts="$mvn_opts -Dmaven.test.skip=true"
+        print_info "跳过测试"
+    else
+        print_info "测试将在编译后自动执行"
     fi
 
-    mvn clean install \
-        -Dmaven.test.skip=true \
-        -Dasciidoctor.skip=true \
+    local M2_OPTS="$mvn_opts -Dasciidoctor.skip=true"
+
+    # 根据模块选择构建范围
+    local MAVEN_PROJECTS=""
+    case "$MODULE" in
+        api)
+            MAVEN_PROJECTS="-pl meta-grpc,meta-api -am"
+            print_info "模块: meta-api"
+            ;;
+        simple)
+            MAVEN_PROJECTS="-pl meta-grpc,meta-simple -am"
+            print_info "模块: meta-simple"
+            ;;
+        all)
+            MAVEN_PROJECTS=""
+            print_info "模块: 全部"
+            ;;
+    esac
+
+    print_info "开始Maven编译..."
+    if [ "$CLEAN_BUILD" = true ]; then
+        mvn clean $MAVEN_PROJECTS
+    fi
+
+    mvn clean install $MAVEN_PROJECTS \
+        $M2_OPTS \
         -Dos.detected.classifier=linux-x86_64
 
     if [ $? -eq 0 ]; then
@@ -113,10 +136,21 @@ maven_build() {
 check_artifacts() {
     print_info "检查编译产物..."
 
-    local artifacts=(
-        "meta-api/target/meta-api-1.0-SNAPSHOT.jar"
-        "meta-simple/target/meta-simple-1.0-SNAPSHOT.jar"
-    )
+    local artifacts=()
+    case "$MODULE" in
+        api)
+            artifacts=("meta-api/target/meta-api-1.0-SNAPSHOT.jar")
+            ;;
+        simple)
+            artifacts=("meta-simple/target/meta-simple-1.0-SNAPSHOT.jar")
+            ;;
+        all)
+            artifacts=(
+                "meta-api/target/meta-api-1.0-SNAPSHOT.jar"
+                "meta-simple/target/meta-simple-1.0-SNAPSHOT.jar"
+            )
+            ;;
+    esac
 
     local missing=()
     for artifact in "${artifacts[@]}"; do
@@ -139,18 +173,28 @@ check_artifacts() {
 
 # 构建Docker镜像
 build_docker_image() {
-    local full_image_name="${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+    local dockerfile="${DOCKERFILE}"
+    if [ "$dockerfile" = "Dockerfile" ] && [ "$MODULE" != "all" ]; then
+        dockerfile="Dockerfile.${MODULE}"
+    fi
+
+    local full_image_name
+    if [ "$MODULE" = "all" ]; then
+        full_image_name="${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+    else
+        full_image_name="${REGISTRY}/${IMAGE_NAME}-${MODULE}:${IMAGE_TAG}"
+    fi
 
     print_info "开始构建Docker镜像..."
     print_info "镜像名称: ${full_image_name}"
-    print_info "Dockerfile: ${DOCKERFILE}"
+    print_info "Dockerfile: ${dockerfile}"
 
-    if [ ! -f "${DOCKERFILE}" ]; then
-        print_error "Dockerfile不存在: ${DOCKERFILE}"
+    if [ ! -f "${dockerfile}" ]; then
+        print_error "Dockerfile不存在: ${dockerfile}"
         exit 1
     fi
 
-    docker build -f "${DOCKERFILE}" -t "${full_image_name}" .
+    docker build -f "${dockerfile}" -t "${full_image_name}" .
 
     if [ $? -eq 0 ]; then
         print_info "Docker镜像构建成功: ${full_image_name}"
@@ -159,14 +203,18 @@ build_docker_image() {
         exit 1
     fi
 
-    # 显示镜像信息
     print_info "镜像信息:"
-    docker images "${REGISTRY}/${IMAGE_NAME}" | grep "${IMAGE_TAG}"
+    docker images | grep "${IMAGE_TAG}" | head -3
 }
 
 # 推送镜像
 push_docker_image() {
-    local full_image_name="${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+    local full_image_name
+    if [ "$MODULE" = "all" ]; then
+        full_image_name="${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+    else
+        full_image_name="${REGISTRY}/${IMAGE_NAME}-${MODULE}:${IMAGE_TAG}"
+    fi
 
     print_info "推送镜像到仓库: ${full_image_name}"
 
@@ -189,10 +237,18 @@ main() {
     SKIP_BUILD=false
     PUSH_IMAGE=false
     CLEAN_BUILD=false
+    SKIP_TESTS=false
 
     # 解析参数
     while [[ $# -gt 0 ]]; do
         case $1 in
+            -m|--module)
+                case "$2" in
+                    all|api|simple) MODULE="$2" ;;
+                    *) print_error "无效模块: $2 (可选: all, api, simple)"; exit 1 ;;
+                esac
+                shift 2
+                ;;
             -r|--registry)
                 REGISTRY="$2"
                 shift 2
@@ -221,6 +277,10 @@ main() {
                 CLEAN_BUILD=true
                 shift
                 ;;
+            -T|--skip-tests)
+                SKIP_TESTS=true
+                shift
+                ;;
             -h|--help)
                 show_help
                 exit 0
@@ -236,11 +296,13 @@ main() {
     print_info "=========================================="
     print_info "primihub-meta 编译和构建脚本"
     print_info "=========================================="
+    print_info "模块:     ${MODULE}"
     print_info "仓库地址: ${REGISTRY}"
     print_info "镜像名称: ${IMAGE_NAME}"
     print_info "镜像标签: ${IMAGE_TAG}"
     print_info "Dockerfile: ${DOCKERFILE}"
     print_info "跳过编译: ${SKIP_BUILD}"
+    print_info "跳过测试: ${SKIP_TESTS}"
     print_info "推送镜像: ${PUSH_IMAGE}"
     print_info "=========================================="
 
@@ -265,14 +327,35 @@ main() {
         print_info "跳过镜像推送 (使用 -p 或 --push 参数可推送镜像)"
     fi
 
+    local image_url
+    if [ "$MODULE" = "all" ]; then
+        image_url="${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+    else
+        image_url="${REGISTRY}/${IMAGE_NAME}-${MODULE}:${IMAGE_TAG}"
+    fi
+
     print_info "=========================================="
     print_info "构建完成!"
-    print_info "镜像: ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+    print_info "镜像: ${image_url}"
 
     if [ "$PUSH_IMAGE" = false ]; then
         print_info ""
-        print_info "运行镜像:"
-        print_info "  docker run -p 8080:8080 ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+        if [ "$MODULE" = "simple" ]; then
+            print_info "运行镜像:"
+            print_info "  docker run -p 8099:8099 -p 9099:9099 -v simple-data:/data/fusion/simple ${image_url}"
+            print_info ""
+            print_info "或使用 docker-compose:"
+            print_info "  docker compose up -d"
+        elif [ "$MODULE" = "api" ]; then
+            print_info "运行镜像 (需要 MySQL + Nacos):"
+            print_info "  docker compose -f docker-compose.full.yaml up -d"
+        else
+            print_info "运行 meta-simple 镜像:"
+            print_info "  docker compose up -d"
+            print_info ""
+            print_info "运行 meta-api 镜像 (需要 MySQL + Nacos):"
+            print_info "  docker compose -f docker-compose.full.yaml up -d"
+        fi
     fi
     print_info "=========================================="
 }

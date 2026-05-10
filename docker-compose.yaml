@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  meta-simple:
+    image: primihub/meta-simple:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.meta-simple
+    container_name: primihub-meta-simple
+    ports:
+      - "8099:8099"
+      - "9099:9099"
+    volumes:
+      - simple-data:/data/fusion/simple
+    environment:
+      - db.path=/data/fusion/simple
+      - collaborate=http://host.docker.internal:7899/
+      - TZ=Asia/Shanghai
+    restart: unless-stopped
+
+volumes:
+  simple-data:

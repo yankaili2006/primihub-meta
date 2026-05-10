@@ -9,7 +9,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Resource;
-import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -97,15 +96,26 @@ public class DataGrpcService extends DataSetServiceGrpc.DataSetServiceImplBase {
                 .setId(dataSet.getId())
                 .setAccessInfo(dataSet.getAccessInfo())
                 .setDriver(dataSet.getDriver())
-                .setAddress(dataSet.getAddress())
-                .setVisibility(MetaInfo.Visibility.valueOf(dataSet.getVisibility()));
-        List<String> fields = Arrays.stream(dataSet.getFields().split(";")).collect(Collectors.toList());
-        for (String field : fields) {
-            String[] fieldAndType = field.split(",");
-            metaInfoBuilder.addDataType(DataTypeInfo.newBuilder().setName(fieldAndType[0]).setType(DataTypeInfo.PlainDataType.valueOf(fieldAndType[1])));
+                .setAddress(dataSet.getAddress());
+        if (dataSet.getVisibility() != null) {
+            metaInfoBuilder.setVisibility(MetaInfo.Visibility.valueOf(dataSet.getVisibility()));
         }
-        return DatasetData.newBuilder()
-                .setAvailable(DatasetData.Status.valueOf(dataSet.getAvailable()))
-                .setMetaInfo(metaInfoBuilder.build()).build();
+        String fieldsStr = dataSet.getFields();
+        if (fieldsStr != null && !fieldsStr.isEmpty()) {
+            for (String field : fieldsStr.split(";")) {
+                String[] fieldAndType = field.split(",");
+                if (fieldAndType.length == 2) {
+                    metaInfoBuilder.addDataType(DataTypeInfo.newBuilder()
+                            .setName(fieldAndType[0])
+                            .setType(DataTypeInfo.PlainDataType.valueOf(fieldAndType[1])));
+                }
+            }
+        }
+        DatasetData.Builder builder = DatasetData.newBuilder()
+                .setMetaInfo(metaInfoBuilder.build());
+        if (dataSet.getAvailable() != null) {
+            builder.setAvailable(DatasetData.Status.valueOf(dataSet.getAvailable()));
+        }
+        return builder.build();
     }
 }

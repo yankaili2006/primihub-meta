@@ -9,6 +9,8 @@ public class PageParam {
     private Integer offset;
 
     public Integer getOffset() {
-        return (pageNo-1)*pageSize;
+        int pn = pageNo != null ? pageNo : 1;
+        int ps = pageSize != null ? pageSize : 5;
+        return (pn - 1) * ps;
     }
 }

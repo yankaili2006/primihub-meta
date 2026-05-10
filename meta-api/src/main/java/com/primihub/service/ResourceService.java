@@ -1,6 +1,5 @@
 package com.primihub.service;
 
-import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.primihub.convert.DataResourceConvert;
 import com.primihub.entity.DataSet;
@@ -76,7 +75,7 @@ public class ResourceService {
             return BaseResultEntity.failure(BaseResultEnum.LACK_OF_PARAM,"globalId");
         }
         String organShortCode = getOrganShortCode(globalId);
-        List<CopyResourceDto> filterDtoList = copyResourceDtoList.stream().filter(dto -> dto.getResourceId() == null && StringUtils.isEmpty(dto.getResourceId()) && !dto.getResourceId().substring(0, 11).equals(organShortCode)).collect(Collectors.toList());
+        List<CopyResourceDto> filterDtoList = copyResourceDtoList.stream().filter(dto -> dto.getResourceId() != null && !dto.getResourceId().isEmpty() && !dto.getResourceId().substring(0, Math.min(11, dto.getResourceId().length())).equals(organShortCode)).collect(Collectors.toList());
         if (filterDtoList!=null && filterDtoList.size()>0){
             StringBuilder sb = new StringBuilder("执行复制任务失败:").append("【条件检验未通过】\n");
             for (CopyResourceDto copyResourceDto : filterDtoList) {

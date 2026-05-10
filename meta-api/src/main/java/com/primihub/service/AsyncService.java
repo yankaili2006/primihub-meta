@@ -17,21 +17,14 @@ public class AsyncService {
     private NoticeService noticeService;
 
     @Async
-    public void noticeResource(DataSet dataSet,DataSet newDataSet){
-//        int d = 0;
-//        if (dataSet!=null){
-//            d = dataSet.toString().hashCode();
-//        }
-//        int nd = newDataSet.toString().hashCode();
-//        if (d!=nd){
-            BaseResultEntity baseResultEntity = noticeService.noticeResource(newDataSet.getId());
-            log.info("{} - {}",newDataSet.getId(),JSONObject.toJSONString(baseResultEntity));
-            if (!"0".equals(baseResultEntity.getCode())){
-                log.info("进入{}",newDataSet.getId());
-                baseResultEntity = noticeService.testDataSet(newDataSet.getId());
-                log.info("{} - {}",newDataSet.getId(),JSONObject.toJSONString(baseResultEntity));
-            }
-//        }
+    public void noticeResource(DataSet dataSet, DataSet newDataSet) {
+        BaseResultEntity baseResultEntity = noticeService.noticeResource(newDataSet.getId());
+        log.info("{} - {}", newDataSet.getId(), JSONObject.toJSONString(baseResultEntity));
+        if (!Integer.valueOf(0).equals(baseResultEntity.getCode())) {
+            log.info("进入{}", newDataSet.getId());
+            baseResultEntity = noticeService.testDataSet(newDataSet.getId());
+            log.info("{} - {}", newDataSet.getId(), JSONObject.toJSONString(baseResultEntity));
+        }
     }
 
 }

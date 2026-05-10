@@ -9,6 +9,7 @@ import com.primihub.entity.resource.po.FusionResourceField;
 import com.primihub.entity.resource.vo.FusionResourceVo;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -88,7 +89,7 @@ public class DataResourceConvert {
         if (fusionResource.getResourceTag() != null && !fusionResource.getResourceTag().isEmpty()) {
             fusionResourceVo.setResourceTag(Arrays.asList(fusionResource.getResourceTag().split(",")));
         } else {
-            fusionResourceVo.setResourceTag(Arrays.asList(""));
+            fusionResourceVo.setResourceTag(new ArrayList<>());
         }
         fusionResourceVo.setOrganId(fusionResource.getOrganId());
         fusionResourceVo.setCreateDate(fusionResource.getCTime());

@@ -1,0 +1,19 @@
+FROM maven:3.8.1-openjdk-8-slim AS build
+
+WORKDIR /opt
+ADD . /opt/
+
+RUN ARCH=$(uname -m | sed 's/aarch64/aarch_64/; s/x86_64/x86_64/') && \
+    mvn clean install -pl meta-grpc,meta-simple -am \
+      -Dmaven.test.skip=true \
+      -Dos.detected.classifier=linux-${ARCH}
+
+FROM openjdk:8-jre-slim
+
+RUN ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+
+COPY --from=build /opt/meta-simple/target/*-SNAPSHOT.jar /app/meta-simple.jar
+
+EXPOSE 8099 9099
+
+ENTRYPOINT ["java", "-jar", "-Dfile.encoding=UTF-8", "/app/meta-simple.jar"]

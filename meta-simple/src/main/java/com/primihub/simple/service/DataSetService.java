@@ -19,7 +19,6 @@ public class DataSetService implements StorageService {
 
     @Override
     public void saveDataSet(DataSet dataSet) {
-//        dataSetRepository.save(datSet);
         DataSet byId = getById(dataSet.getId());
         if (byId!=null){
             dataSetRepository.updateById(dataSet);
@@ -41,7 +40,6 @@ public class DataSetService implements StorageService {
 
     @Override
     public void deleteDataSet(DataSet dataSet) {
-//        dataSetRepository.removeById(id);
         dataSetRepository.deleteById(dataSet.getId());
         if (dataSet.getHolder() == 0){
             asyncService.syncDelete(dataSet);
@@ -53,14 +51,12 @@ public class DataSetService implements StorageService {
     public List<DataSet> getAll() {
         QueryWrapper<DataSet> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("holder", 0);
-//        return dataSetRepository.list(queryWrapper);
         return dataSetRepository.selectList(queryWrapper);
     }
 
     @Override
     public List<DataSet> getByIds(Set<String> ids) {
         return dataSetRepository.selectBatchIds(ids);
-//        return dataSetRepository.listByIds(ids);
     }
 
     @Override
@@ -73,7 +69,6 @@ public class DataSetService implements StorageService {
                 dataSetRepository.insert(dataSet);
             }
         }
-//        dataSetRepository.saveBatch(list);
     }
 
     public DataSet getById(String id){
