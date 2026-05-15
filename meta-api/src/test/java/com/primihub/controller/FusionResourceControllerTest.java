@@ -63,6 +63,15 @@ public class FusionResourceControllerTest {
     }
 
     @Test
+    public void testGetResourceListById_EmptyArray() throws Exception {
+        mockMvc.perform(request(HttpMethod.GET, "/fusionResource/getResourceListById")
+                .param("resourceIdArray", "")
+                .param("globalId", "global-1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(100));
+    }
+
+    @Test
     public void testGetCopyResource_MissingParam() throws Exception {
         mockMvc.perform(request(HttpMethod.GET, "/fusionResource/getCopyResource"))
                 .andExpect(status().isBadRequest());
@@ -103,6 +112,15 @@ public class FusionResourceControllerTest {
                 .param("globalId", "global-1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0));
+    }
+
+    @Test
+    public void testGetDataResource_EmptyResourceId() throws Exception {
+        mockMvc.perform(request(HttpMethod.GET, "/fusionResource/getDataResource")
+                .param("resourceId", "")
+                .param("globalId", "global-1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(100));
     }
 
     @Test
@@ -150,6 +168,14 @@ public class FusionResourceControllerTest {
     }
 
     @Test
+    public void testGetTestDataSet_NoParam() throws Exception {
+        when(resourceService.getTestDataSet(isNull())).thenReturn(BaseResultEntity.success());
+
+        mockMvc.perform(request(HttpMethod.GET, "/fusionResource/getTestDataSet"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     public void testGetDataSets() throws Exception {
         when(resourceService.getDataSets(anySet())).thenReturn(BaseResultEntity.success());
         Set<String> ids = new HashSet<>(Arrays.asList("id1", "id2"));
@@ -157,6 +183,16 @@ public class FusionResourceControllerTest {
         mockMvc.perform(request(HttpMethod.GET, "/fusionResource/getDataSets")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(JSON.toJSONString(ids)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    public void testGetDataSets_EmptySet() throws Exception {
+        when(resourceService.getDataSets(anySet())).thenReturn(BaseResultEntity.success());
+
+        mockMvc.perform(request(HttpMethod.GET, "/fusionResource/getDataSets")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(JSON.toJSONString(new HashSet<>())))
                 .andExpect(status().isOk());
     }
 
@@ -180,5 +216,33 @@ public class FusionResourceControllerTest {
                 .content(JSON.toJSONString(list)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0));
+    }
+
+    @Test
+    public void testBatchSaveTestDataSet_WithMultipleItems() throws Exception {
+        when(resourceService.batchSaveTestDataSet(anyList())).thenReturn(BaseResultEntity.success());
+        List<DataSet> list = new ArrayList<>();
+        list.add(new DataSet("id1", "acc", "mysql", "addr", "public"));
+        list.add(new DataSet("id2", "acc2", "postgresql", "addr2", "private"));
+
+        mockMvc.perform(post("/fusionResource/batchSaveTestDataSet")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(JSON.toJSONString(list)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
+    }
+
+    @Test
+    public void testGetResourceList_WithServiceReturningData() throws Exception {
+        Map<String, Object> result = new HashMap<>();
+        result.put("total", 10);
+        when(resourceService.getResourceList(any())).thenReturn(BaseResultEntity.success(result));
+
+        ResourceParam param = new ResourceParam();
+        mockMvc.perform(request(HttpMethod.GET, "/fusionResource/getResourceList")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(JSON.toJSONString(param)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.total").value(10));
     }
 }
