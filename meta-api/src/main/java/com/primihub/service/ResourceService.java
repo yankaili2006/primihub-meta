@@ -57,8 +57,8 @@ public class ResourceService {
 
     public BaseResultEntity getDataResource(String resourceId,String globalId) {
         FusionResource fusionResource = resourceRepository.selectFusionResourceByResourceId(resourceId);
-        if (fusionResource==null) {
-            return BaseResultEntity.success();
+        if (fusionResource==null || fusionResource.getOrganId() == null) {
+            return BaseResultEntity.success(new java.util.HashMap());
         }
         FusionOrgan fusionOrgan = fusionRepository.getFusionOrganByGlobalId(fusionResource.getOrganId());
         List<FusionResourceField> fusionResourceFields = resourceRepository.selectFusionResourceFieldById(fusionResource.getId());
