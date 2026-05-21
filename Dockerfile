@@ -2,12 +2,16 @@ FROM maven:3.8.1-openjdk as build
 
 WORKDIR /opt
 
+COPY settings.xml /tmp/settings.xml
+
 ADD . /opt/
 
-RUN ARCH=`arch | sed s/arm64/aarch_64/ | sed s/aarch64/aarch_64/ | sed s/amd64/x86_64/` \
-  && mvn clean install -Dmaven.test.skip=true -Dos.detected.classifier=linux-${ARCH}
+RUN --mount=type=cache,target=/root/.m2/repository \
+  ARCH=`arch | sed s/arm64/aarch_64/ | sed s/aarch64/aarch_64/ | sed s/amd64/x86_64/` \
+  && mvn -s /tmp/settings.xml -T 1C clean install -Dmaven.test.skip=true -Dos.detected.classifier=linux-${ARCH} \
+  && rm -f /tmp/settings.xml
 
-FROM openjdk:8-jre
+FROM eclipse-temurin:8-jre
 
 ENV DEBIAN_FRONTEND=noninteractive
 
