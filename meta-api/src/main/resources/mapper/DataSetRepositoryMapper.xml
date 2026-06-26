@@ -34,7 +34,8 @@
         select
             id,access_info accessInfo,driver,address,visibility,available,holder,fields
         from data_set where is_del = 0
-        <if test="ids!=null">
+        <!-- 同时校验非空且 size>0, 否则非空空集合会拼出 id in () 被 Druid wall 拒 -->
+        <if test="ids!=null and ids.size() > 0">
             and id in
             <foreach collection="ids" index="index" item="item" open="("
                      separator="," close=")">
