@@ -2,11 +2,13 @@ FROM maven:3.8.1-openjdk as build
 
 WORKDIR /opt
 
+ARG TARGETARCH
+
 COPY settings.xml /tmp/settings.xml
 
 ADD . /opt/
 
-RUN --mount=type=cache,target=/root/.m2/repository \
+RUN --mount=type=cache,target=/root/.m2/repository,id=m2-${TARGETARCH},sharing=locked \
   ARCH=`arch | sed s/arm64/aarch_64/ | sed s/aarch64/aarch_64/ | sed s/amd64/x86_64/` \
   && mvn -s /tmp/settings.xml -T 1C clean install -Dmaven.test.skip=true -Dos.detected.classifier=linux-${ARCH} \
   && rm -f /tmp/settings.xml
