@@ -75,7 +75,10 @@ public class ResourceService {
             return BaseResultEntity.failure(BaseResultEnum.LACK_OF_PARAM,"globalId");
         }
         String organShortCode = getOrganShortCode(globalId);
-        List<CopyResourceDto> filterDtoList = copyResourceDtoList.stream().filter(dto -> dto.getResourceId() != null && !dto.getResourceId().isEmpty() && !dto.getResourceId().substring(0, Math.min(11, dto.getResourceId().length())).equals(organShortCode)).collect(Collectors.toList());
+        // organShortCode 取自 globalId.substring(24,36)，固定 12 位；资源 fusion id 的前缀同为 12 位短码。
+        // 此处若截 11 位则与 12 位短码永不相等 → 所有 saveResource 一律被拒（fusion_resource 恒空、
+        // 协作方资源列表恒空），且平台侧忽略返回值使故障完全静默。
+        List<CopyResourceDto> filterDtoList = copyResourceDtoList.stream().filter(dto -> dto.getResourceId() != null && !dto.getResourceId().isEmpty() && !dto.getResourceId().substring(0, Math.min(12, dto.getResourceId().length())).equals(organShortCode)).collect(Collectors.toList());
         if (filterDtoList!=null && filterDtoList.size()>0){
             StringBuilder sb = new StringBuilder("执行复制任务失败:").append("【条件检验未通过】\n");
             for (CopyResourceDto copyResourceDto : filterDtoList) {

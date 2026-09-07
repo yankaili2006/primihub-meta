@@ -136,4 +136,33 @@ public class ResourceServiceTest {
         assertEquals(BaseResultEnum.FAILURE.getReturnCode(), result.getCode());
         assertTrue(result.getMsg().contains("DB error"));
     }
+
+    @Test
+    public void testBatchSaveResource_OwnOrganPrefixAccepted() {
+        // 回归：前缀校验曾截 11 位与 12 位短码比对，任何本方资源都被判「条件检验未通过」，
+        // fusion_resource 恒空、协作方资源列表恒空。
+        String globalId = "8395908c-14c2-434e-80e6-bdbbccdc9201";
+        CopyResourceDto dto = new CopyResourceDto();
+        dto.setResourceId("bdbbccdc9201-cb916df4-0480-47ea-9161-fa76ca219288");
+        dto.setResourceAuthType(AuthTypeEnum.PUBLIC.getAuthType());
+        when(resourceRepository.selectFusionResourceById(anySet())).thenReturn(new ArrayList<>());
+
+        BaseResultEntity result = resourceService.batchSaveResource(globalId, Arrays.asList(dto));
+
+        assertEquals(BaseResultEnum.SUCCESS.getReturnCode(), result.getCode());
+        verify(resourceRepository).saveFusionResource(any(FusionResource.class));
+    }
+
+    @Test
+    public void testBatchSaveResource_ForeignPrefixRejected() {
+        String globalId = "8395908c-14c2-434e-80e6-bdbbccdc9201";
+        CopyResourceDto dto = new CopyResourceDto();
+        dto.setResourceId("aaaabbbbcccc-ea05957b-5024-4cf1-a67d-aee95355a672");
+        dto.setResourceAuthType(AuthTypeEnum.PUBLIC.getAuthType());
+
+        BaseResultEntity result = resourceService.batchSaveResource(globalId, Arrays.asList(dto));
+
+        assertEquals(BaseResultEnum.DATA_EXECUTE_TASK_FAIL.getReturnCode(), result.getCode());
+        verify(resourceRepository, never()).saveFusionResource(any(FusionResource.class));
+    }
 }
