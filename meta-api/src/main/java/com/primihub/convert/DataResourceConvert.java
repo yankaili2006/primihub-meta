@@ -63,7 +63,12 @@ public class DataResourceConvert {
         copyResourceDto.setResourceHashCode(po.getResourceHashCode());
         copyResourceDto.setResourceState(po.getResourceState());
         copyResourceDto.setUserName(po.getUserName());
-        dataSet.setAccessInfo("");
+        // getCopyResource 用 dataSetMap.get(resourceId) 取值传入，跨机构复制时对端 fusion 库
+        // 常常尚无对应 data_set 行（dataSet 为 null）→ 原先直接 setAccessInfo 触发 NPE，
+        // 使整个 getCopyResource 返回 500，recallNotFinishedTask 中断、复制任务永不推进。
+        if (dataSet != null) {
+            dataSet.setAccessInfo("");
+        }
         copyResourceDto.setDataSet(dataSet);
         return copyResourceDto;
     }
